@@ -281,7 +281,7 @@ void select(String cmd){
 
    if (conn.connected()) {
       MySQL_Cursor cur = MySQL_Cursor(&conn);
-      if (cmd.length()<1000) {
+      if ((cmd.length()<1000)&&(cmd.length()>2)) {
           cmd.toCharArray(tmpsql, cmd.length()+1);
           if (cur.execute(tmpsql)){
               column_names *columns = cur.get_columns();
@@ -312,6 +312,9 @@ void select(String cmd){
              Serial.println("*** NULL");
           }
 
+      }
+      else {
+        LOGERROR("$$$ ERROR");
       }
       cur.close();
   }
