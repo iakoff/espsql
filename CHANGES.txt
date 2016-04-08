@@ -1,0 +1,4 @@
+CHANGES
+=======
+This file contains a brief summary of changes made from previous versions of
+the connector.
