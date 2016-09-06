@@ -28,10 +28,10 @@
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
 #include <Arduino.h>
-#include "MySQL_Packet.h"
-#include "MySQL_Encrypt_Sha1.h"
+#include <EMySQL_Packet.h>
+#include <EMySQL_Encrypt_Sha1.h>
 
-#define MYSQL_DATA_TIMEOUT  3000   // Wifi client wait in milliseconds
+#define MYSQL_DATA_TIMEOUT  30000   // Wifi client wait in milliseconds
 #define MYSQL_WAIT_INTERVAL 100    // WiFi client wait interval
 
 /*
@@ -150,8 +150,16 @@ void MySQL_Packet::send_authentication_packet(char *user, char *password)
   buffer[3] = byte(0x01);
 
   // Write the packet
-  for (int i = 0; i < size_send; i++)
-    client->write(buffer[i]);
+  LOGSDEBUG0("2ÆÎ");
+  for (int i = 0; i < size_send; i++) {
+    //SerialAutoMakerLoop();
+      //unsigned int xx=millis()+100;
+      client->write(buffer[i]);
+      //if (xx<millis()) {
+		SerialAutoMakerLoop();   LOGSDEBUG0("*");
+      //}
+  }
+  LOGSDEBUG0("ÏÀ*****************************************************\n");
 }
 
 
@@ -226,7 +234,7 @@ int MySQL_Packet::wait_for_client() {
     num = client->available();
     timeout++;
     if (num < MYSQL_MIN_BYTES and timeout < MYSQL_MAX_TIMEOUT) {
-      delay(100);  // adjust for network latency
+            mysdelay(MYSQL_WAIT_INTERVAL); // adjust for network latency
     }
   } while (num < MYSQL_MIN_BYTES and timeout < MYSQL_MAX_TIMEOUT);
   return num;
@@ -255,7 +263,7 @@ boolean MySQL_Packet::wait_for_data() {
     if (data_available) {
       return true;
     } else {
-      delay(MYSQL_WAIT_INTERVAL);
+      mysdelay(MYSQL_WAIT_INTERVAL);
       milliseconds += MYSQL_WAIT_INTERVAL;
     }
   }
@@ -281,18 +289,27 @@ boolean MySQL_Packet::wait_for_data() {
 void MySQL_Packet::read_packet() {
   byte local[4];
 
+  unsigned long milliseconds;
+
   if (buffer != NULL)
     free(buffer);
 
   int avail_bytes = wait_for_client();
-  if (avail_bytes < 4) {
+  milliseconds=millis()+MYSQL_DATA_TIMEOUT;
+  while ((avail_bytes < 4)&&(milliseconds>millis())) {
     avail_bytes = wait_for_client();
+/*    Serial.print("@");
+    Serial.print(avail_bytes);*/
   }
-
+  if (avail_bytes<4) {
+    free(buffer);
+    return;
+  }
   // Read packet header
   for (int i = 0; i < 4; i++) {
     // Wait for client. Abort if no data after TIMEOUT_DATA milliseconds
     if (!wait_for_data()) {
+      free(buffer);
       return;
     }
     local[i] = client->read();
@@ -304,8 +321,15 @@ void MySQL_Packet::read_packet() {
   packet_len += ((uint32_t)local[2] << 16);
   // We must wait for slow arriving packets for Ethernet shields only.
   avail_bytes = wait_for_client();
-  if (avail_bytes < packet_len) {
+  milliseconds=millis()+MYSQL_DATA_TIMEOUT;
+  while ((avail_bytes < packet_len)&&(milliseconds>millis())) {
     avail_bytes = wait_for_client();
+    /*Serial.print("#");
+    Serial.print(avail_bytes);*/
+  }
+  if (avail_bytes<packet_len) {
+    free(buffer);
+    return;
   }
   // Check for valid packet.
   if (packet_len < 0) {
@@ -315,6 +339,7 @@ void MySQL_Packet::read_packet() {
   buffer = (byte *)malloc(packet_len+4);
   if (buffer == NULL) {
     show_error(MEMORY_ERROR, true);
+    free(buffer);
     return;
   }
   for (int i = 0; i < 4; i++)
@@ -323,6 +348,7 @@ void MySQL_Packet::read_packet() {
   for (int i = 4; i < packet_len+4; i++) {
     // Wait for client. Abort if no data after TIMEOUT_DATA milliseconds
     if (!wait_for_data()) {
+      free(buffer);
       return;
     }
     buffer[i] = client->read();

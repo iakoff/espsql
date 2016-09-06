@@ -29,10 +29,10 @@
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
 #include <Arduino.h>
-#include "MySQL_Connection.h"
-#include "MySQL_Encrypt_Sha1.h"
+#include <EMySQL_Connection.h>
+#include <EMySQL_Encrypt_Sha1.h>
 
-#define MAX_CONNECT_ATTEMPTS 3
+#define MAX_CONNECT_ATTEMPTS 10
 
 const char CONNECTED[] PROGMEM = "*** Connected to server version ";
 const char DISCONNECTED[] PROGMEM = "*** Disconnected.";
@@ -61,32 +61,34 @@ boolean MySQL_Connection::connect(IPAddress server, int port, char *user,
 
   // Retry up to MAX_CONNECT_ATTEMPTS times 1 second apart.
   do {
-    delay(1000);
+    mysdelay(1000);
     connected = client->connect(server, port);
     i++;
   } while (i < MAX_CONNECT_ATTEMPTS && !connected);
 
   if (connected) {
-    //Serial.println("##Connected");
+    //Serial.print("[0]");
     read_packet();
-    //Serial.println("##Connected1");
+    if (buffer == NULL) return false;
+    //Serial.print("[1]");
     parse_handshake_packet();
-    //Serial.println("##Connected2");
+    //Serial.print("[2]");
     send_authentication_packet(user, password);
-    //Serial.println("##Connected3");
+    //Serial.print("[3]");
     read_packet();
-    //Serial.println("##Connected4");
+    if (buffer == NULL) return false;
+    //Serial.print("[4]");
     if (check_ok_packet() != 0) {
       parse_error_packet();
-      //Serial.println("##1");
+      //Serial.println("#1");
       return false;
     }
-    show_error(CONNECTED);Serial.println(server_version);
+    //#%$ show_error(CONNECTED);Serial.println(server_version);
     free(server_version); // don't need it anymore
-    //Serial.println("##2");
+    //Serial.println("#2");
     return true;
   }
-  //Serial.println("##3");
+  //Serial.println("#3");
   return false;
 }
 
@@ -102,6 +104,6 @@ void MySQL_Connection::close()
   {
     client->flush();
     client->stop();
-    show_error(DISCONNECTED, true);
+    //№;%show_error(DISCONNECTED, true);
   }
 }

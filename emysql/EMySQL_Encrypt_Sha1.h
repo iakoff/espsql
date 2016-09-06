@@ -8,8 +8,8 @@
  * want to use the full cryptosuite functionality. For Connector/Arduino
  * all that is needed is this one sha1 class.
 */
-#ifndef ENCRYPT_SHA1_H
-#define ENCRYPT_SHA1_H
+#ifndef EENCRYPT_SHA1_H
+#define EENCRYPT_SHA1_H
 
 #include <inttypes.h>
 #include "Print.h"

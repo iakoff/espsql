@@ -1,350 +1,315 @@
+// SELECT idrawacts,pinname,pinvalue FROM arduino.rawacts WHERE isnull(updated) order by stamp limit 3
+// $dl#4
+// $cfg#1,9600
+// $par#u314zd271n,1d5p15p0pd,gb2due,28jn4ERF3,192.168.2.106
+// $sts#999
+// $clr#
 #include <stdio.h>
-
-int _ESPSQLLOGLEVEL_=0;
-
-
-#define LOGERROR(x)    if(_ESPSQLLOGLEVEL_>0) { Serial.print("[EspSQL] "); Serial.println(x); }
-#define LOGERROR1(x,y) if(_ESPSQLLOGLEVEL_>2) { Serial.print("[EspSQL] "); Serial.print(x); Serial.print(" "); Serial.println(y); }
-#define LOGWARN(x)     if(_ESPSQLLOGLEVEL_>1) { Serial.print("[EspSQL] "); Serial.println(x); }
-#define LOGWARN1(x,y)  if(_ESPSQLLOGLEVEL_>2) { Serial.print("[EspSQL] "); Serial.print(x); Serial.print(" "); Serial.println(y); }
-#define LOGINFO(x)     if(_ESPSQLLOGLEVEL_>2) { Serial.print("[EspSQL] "); Serial.println(x); }
-#define LOGINFO1(x,y)  if(_ESPSQLLOGLEVEL_>2) { Serial.print("[EspSQL] "); Serial.print(x); Serial.print(" "); Serial.println(y); }
-
-#define LOGDEBUG(x)      if(_ESPSQLLOGLEVEL_>3) { Serial.println(x); }
-#define LOGDEBUG0(x)     if(_ESPSQLLOGLEVEL_>3) { Serial.print(x); }
-#define LOGDEBUG1(x,y)   if(_ESPSQLLOGLEVEL_>3) { Serial.print(x); Serial.print(" "); Serial.println(y); }
-#define LOGDEBUG2(x,y,z) if(_ESPSQLLOGLEVEL_>3) { Serial.print(x); Serial.print(" "); Serial.print(y); Serial.print(" "); Serial.println(z); }
-
 #include <ESP8266WiFi.h>
-#include "mysql/MySQL_Connection.h"
-#include "mysql/MySQL_Cursor.h"
 #include <fs.h>
+#include <EMySQL_Connection.h>
+#include <EMySQL_Cursor.h>
 
-#define symFILE "/espsql1.ini"
-#define symINI "[espsqlcfg]"
-#define symSSID "ssid="
-#define symPASS "pass="
-#define symMYUSER "myuser="
-#define symMYPASS "mypass="
-#define symSERVER "myip="
 
+#define LOGERROR(x)    if(_ESPMAINLOGLEVEL_>0) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGERROR1(x,y) if(_ESPMAINLOGLEVEL_>0) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGWARN(x)     if(_ESPMAINLOGLEVEL_>1) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGWARN1(x,y)  if(_ESPMAINLOGLEVEL_>1) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGINFO(x)     if(_ESPMAINLOGLEVEL_>2) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGINFO1(x,y)  if(_ESPMAINLOGLEVEL_>2) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+
+#define LOGDEBUG(x)      if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGDEBUG0(x)      if(_ESPMAINLOGLEVEL_>3) { Serial.print(x); }
+#define LOGDEBUG1(x,y)   if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGDEBUG2(x,y,z) if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.print(y); Serial.print(" "); Serial.println(z); }
+
+
+#define LOGERROR(x)    if(_ESPMAINLOGLEVEL_>0) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGERROR1(x,y) if(_ESPMAINLOGLEVEL_>0) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGWARN(x)     if(_ESPMAINLOGLEVEL_>1) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGWARN1(x,y)  if(_ESPMAINLOGLEVEL_>1) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGINFO(x)     if(_ESPMAINLOGLEVEL_>2) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGINFO1(x,y)  if(_ESPMAINLOGLEVEL_>2) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+
+#define LOGDEBUG(x)      if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.println(x); }
+#define LOGDEBUG0(x)      if(_ESPMAINLOGLEVEL_>3) { Serial.print(x); }
+#define LOGDEBUG1(x,y)   if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.println(y); }
+#define LOGDEBUG2(x,y,z) if(_ESPMAINLOGLEVEL_>3) { Serial.print("$#ESP "); Serial.print(x); Serial.print(" "); Serial.print(y); Serial.print(" "); Serial.println(z); }
+
+
+
+int _ESPMAINLOGLEVEL_=0;
+
+
+
+char sqlpar[5][32];
+int serbaudrate=115200;
+
+//long int mt=millis();
 
 int status = WL_IDLE_STATUS;
 
 IPAddress server_addr(192,168,2,106);  // IP of the MySQL *server* here
 
+
 // Initialize the client library
 WiFiClient client;
 MySQL_Connection conn((Client *)&client);
 
-char wifiSSID[32];
-char wifiPASS[32];
-char myUSER[32];
-char myPASS[32];
 
-/**
- * Start Wifi connection
- * if passphrase is set the most secure supported mode will be automatically selected
- * @param ssid const char*          Pointer to the SSID string.
- * @param passphrase const char *   Optional. Passphrase. Valid characters in a passphrase must be between ASCII 32-126 (decimal).
- * @param bssid uint8_t[6]          Optional. BSSID / MAC of AP
- * @param channel                   Optional. Channel of AP
- * @param connect                   Optional. call connect
- * @return
- 
-wl_status_t ESP8266WiFiSTAClass::begin(const char* ssid, const char *passphrase, int32_t channel, const uint8_t* bssid, bool connect) {
-*/
+void soft_reset() {
+  while (conn.connected()) { conn.close();}
+  client.stop();
+  ESP.restart();
+} 
 
-bool checkini(void){
+bool loadini(void){
   File f;
-  String ss;
+  String ss,x;
   f = SPIFFS.open(symFILE, "r");
   if (f) {
-    if (f.find(symINI)) {
-          LOGDEBUG("cfg -ok");
-          do{
-            ss=f.readStringUntil(10);
-            LOGDEBUG1("get string:",ss);
-            if (ss.startsWith(symSSID)) {
-              ss=ss.substring(5);
-              ss.toCharArray(wifiSSID,ss.length());
-              LOGDEBUG1("wifiSSID=",wifiSSID);
-            }
-            if (ss.startsWith(symPASS)) {
-              ss=ss.substring(5);
-              ss.toCharArray(wifiPASS,ss.length());
-              LOGDEBUG1("wifiPASS=",wifiPASS);
-            }
-            
-            if (ss.startsWith(symMYUSER)) {
-              ss=ss.substring(7);
-              ss.toCharArray(myUSER,ss.length());
-              LOGDEBUG1("myUSER=",myUSER);
-            }
-            
-            if (ss.startsWith(symMYPASS)) {
-              ss=ss.substring(7);
-              ss.toCharArray(myPASS,ss.length());
-              LOGDEBUG1("myPASS=",myPASS);
-            }
-            if (ss.startsWith(symSERVER)) {
-              int a=255,b=255,c=255,d=255;
-              char ipstr[32];
-              ss=ss.substring(5);
-              ss.toCharArray(ipstr,ss.length());
-              server_addr.fromString(ipstr);
-              LOGDEBUG1("SERVER=",server_addr);
-            
-            }
-          }while (f.available()>0);
-        return true;        
+    ss = f.readStringUntil('\n');
+    LOGDEBUG1("LOADINI=",ss);
+    for(int i=0;i<5;i++){
+        x=ex(ss,symSepA,i+1);
+        x.toCharArray(sqlpar[i],x.length()+1);
+        LOGDEBUG1(i,sqlpar[i]);
     }
-  }
-  LOGERROR("Init file open failed");
-  SPIFFS.format();
-  updateini();
-  LOGDEBUG("Updated");
-  return false;
-}
-
-void updateini(void)
-{
-  File f;
-  f = SPIFFS.open(symFILE, "w");
-  f.println(symINI);
-  f.print(symSSID);
-  f.println(wifiSSID);
-  f.print(symPASS);
-  f.println(wifiPASS);
-  f.print(symMYUSER);
-  f.println(myUSER);
-  f.print(symMYPASS);
-  f.println(myPASS);
-  f.print(symSERVER);
-  f.println(server_addr);
-  f.close();
-}
-
-bool checkwifi()
-{
-  int cnt=10;  
-  LOGDEBUG1("*** Connecting ",wifiSSID);
-  WiFi.begin(wifiSSID, wifiPASS);
-  
-  while ((WiFi.status() != WL_CONNECTED)&&(cnt>0)) {
-    delay(500);
-    LOGDEBUG0(".");
-    cnt--;
-  }
-  if(WiFi.status() == WL_CONNECTED) {
-    LOGDEBUG("");
-    LOGDEBUG1("*** WiFi connected. HostName:",WiFi.hostname());
-    LOGDEBUG1("*** IP:",WiFi.localIP());
-    return true;
+    switch(ex(ss,symSepA,6).toInt()) {
+      case 115200: case 57600: case 38400: case 19200: case 9600: serbaudrate=ex(ss,symSepA,6).toInt(); break;
+      default: serbaudrate=115200; break;
+    }
+    if (Serial.baudRate()!=serbaudrate) Serial.begin(serbaudrate);
+    return true;        
   }
   else {
-    LOGERROR("WIFI ERROR");
+  /*  serbaudrate=115200;
+    if (Serial.baudRate()!=serbaudrate) Serial.begin(serbaudrate);
+    LOGDEBUG1("serbaudrate=",serbaudrate);*/
     return false;
   }
 }
 
-bool checksql()
-{
-  int cnt=10;  
-  if (conn.connect(server_addr, 3306, myUSER, myPASS)) {
-    return true;
-  }
-  LOGERROR1("$$$ Can't connect to server:",server_addr);
-  LOGERROR1("$$$ user:",myUSER);
-  return false;
-}
 
-
-void setup() {
-  //pinMode(16,OUTPUT);
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("ESPSQL v1.1");
-  //delay(100);
-  if(_ESPSQLLOGLEVEL_>3) {readall();}
-  SPIFFS.begin();
-
-  while(!checkini());
-  if(checkwifi()) {
-     if(_ESPSQLLOGLEVEL_>3) {WiFi.printDiag(Serial);}
-     if(checksql()) {
-          Serial.print("SQL>");
-     }
-  }
-    
-}
-
-void soft_reset() {
-  pinMode(0,OUTPUT);
-  digitalWrite(0,1);
-  pinMode(2,OUTPUT);
-  digitalWrite(2,1);
-  ESP.restart();
-} 
-
-
-
-  char c;
-  long int mt=millis();
-  bool g16f=false;
-  String cmdSQL="";
-
-
-void loop() {
-  // put your main code here, to run repeatedly:
-  if (millis()-mt>10000) {
-      mt=millis();
-      ESP.getCycleCount();
-  }
-  if(Serial.available()) {
-    c=Serial.read();
-    if (c>31) {
-        cmdSQL=cmdSQL+c;
-    }
-    else {
-        if((c==13)||(c==10)) {
-          Serial.println(cmdSQL);
-          if (cmdSQL.startsWith("$$")) {
-              cmdSQL=cmdSQL.substring(2);
-              if (cmdSQL.startsWith("id#")) {
-                  cmdSQL=cmdSQL.substring(3);
-                  cmdSQL.toCharArray(wifiSSID,cmdSQL.length()+1);
-                  LOGDEBUG1("wifiSSID=",wifiSSID);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("ps#")) {
-                  cmdSQL=cmdSQL.substring(3);
-                  cmdSQL.toCharArray(wifiPASS,cmdSQL.length()+1);
-                  LOGDEBUG1("wifiPASS=",wifiPASS);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("mu#")) {
-                  cmdSQL=cmdSQL.substring(3);
-                  cmdSQL.toCharArray(myUSER,cmdSQL.length()+1);
-                  LOGDEBUG1("myUSER=",myUSER);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("mp#")) {
-                  cmdSQL=cmdSQL.substring(3);
-                  cmdSQL.toCharArray(myPASS,cmdSQL.length()+1);
-                  LOGDEBUG1("myPASS=",myPASS);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("dl#")) {
-                  cmdSQL=cmdSQL.substring(3);
-                  _ESPSQLLOGLEVEL_=cmdSQL.toInt();
-                  LOGDEBUG1("_ESPSQLLOGLEVEL_=",_ESPSQLLOGLEVEL_);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("ms#")) {
-                  int a=255,b=255,c=255,d=255;
-                  char ipstr[32];
-                  cmdSQL=cmdSQL.substring(3);
-                  cmdSQL.toCharArray(ipstr,cmdSQL.length()+1);
-                  server_addr.fromString(ipstr);
-                  LOGDEBUG1("SERVER=",server_addr);
-                  cmdSQL="";
-              }
-              if (cmdSQL.startsWith("ss")) {
-                  updateini();
-                  soft_reset();
-              }
-              if (cmdSQL.startsWith("zz")) {
-                if(checkwifi()) {
-                  if(_ESPSQLLOGLEVEL_>3) {WiFi.printDiag(Serial);}
-                  if(checksql()) {
-                     updateini();
-                     Serial.println("SQL ok");
-                  }
-                }
-                cmdSQL="";
-              }
-          }
-          else {
-            select(cmdSQL);
-          }
-          cmdSQL="";
-          Serial.print("SQL>");
-        }
-    }
-  }
-}
-
-void select(String cmd){
+void select2file(){
+   
    char tmpsql[1000];
-   long head_count = 0;
+   int rownum = 0;
+   File f;
 
-   if (conn.connected()) {
+ for(int posSqlStr=0;posSqlStr<=MaxSqlStr;posSqlStr++) {
+   LOGDEBUG1("posSqlStr",posSqlStr);
+   if (SPIFFS.exists("sqlstring"+String(posSqlStr))) {
+    if (conn.connected()) {
+      LOGDEBUG("S2F00");
+      f = SPIFFS.open("sqlstring"+String(posSqlStr), "r");
+      String sqlstr=f.readStringUntil('\n');f.close();
+      
       MySQL_Cursor cur = MySQL_Cursor(&conn);
-      if ((cmd.length()<1000)&&(cmd.length()>2)) {
-          cmd.toCharArray(tmpsql, cmd.length()+1);
+      if ((sqlstr.length()<1000)&&(sqlstr.length()>2)) {
+          sqlstr.toCharArray(tmpsql, sqlstr.length()+1);
+          LOGDEBUG1("S2F1",posSqlStr);
           if (cur.execute(tmpsql)){
+              LOGDEBUG("S2F2");
+              f = SPIFFS.open("sqlbufer"+String(posSqlStr), "w");
               column_names *columns = cur.get_columns();
-              for (int f = 0; f < columns->num_fields; f++) {
-                Serial.print(columns->fields[f]->name);
-                if (f < columns->num_fields-1) {
-                  Serial.print(',');
-                }
+              f.println(columns->num_fields);
+              for (int ff = 0; ff < columns->num_fields; ff++) {
+                f.println(columns->fields[ff]->name);
+                //SerialAutoMakerLoop();
               }
-              Serial.println();
               row_values *row = NULL;
               do {
                 row = cur.get_next_row();
                 if (row != NULL) {
-                  for (int f = 0; f < columns->num_fields; f++) {
-                    Serial.print('"');
-                    Serial.print(row->values[f]);
-                    Serial.print('"');
-                    if (f < columns->num_fields-1) {
-                       Serial.print(',');
-                    }
+                  for (int ff = 0; ff < columns->num_fields; ff++) {
+                    f.println(row->values[ff]);
+                    //SerialAutoMakerLoop();
                   }
-                  Serial.println();
                 }
+                rownum++;
               } while (row != NULL);
+              f.close();
+              
+              /*f = SPIFFS.open("sqlstat"+String(posSqlStr), "w");
+              f.print(210); f.print(","); 
+              f.print(posSqlStr); f.print(","); 
+              f.print(columns->num_fields);f.print(","); 
+              f.println(rownum);
+              f.close();*/
+              storestatsql(posSqlStr,210,columns->num_fields,rownum);
           }
           else {
-             Serial.println("*** NULL");
+              /*f = SPIFFS.open("sqlstat"+String(posSqlStr), "w");
+              f.print(211); f.print(",");f.println(posSqlStr); 
+              f.close();*/
+              storestatsql(posSqlStr,211,0,0);
           }
-
+          SPIFFS.remove("sqlstring"+String(posSqlStr));
+          //posSqlStr++;
+          LOGDEBUG("S2F3");
       }
       else {
-        LOGERROR("$$$ ERROR");
+         /*f = SPIFFS.open("sqlstat"+String(posSqlStr), "w");
+         f.print(212); f.print(",");f.println(posSqlStr); 
+         f.close();*/
+         storestatsql(posSqlStr,212,0,0);
       }
       cur.close();
+    }
+    else {
+      /*f = SPIFFS.open("sqlstat"+String(posSqlStr), "w");
+      f.print(213); f.print(",");f.println(posSqlStr); 
+      f.close();*/
+      storestatsql(posSqlStr,213,0,0);
+    }
+  }
+ }
+}
+
+void setup() {
+  Serial.begin(serbaudrate);
+  SPIFFS.begin();
+  loadini();
+  Serial.println();
+  Serial.println("ESPSQL v1.1");
+  WiFi.mode(WIFI_STA);
+  /*WiFi.disconnect();*/
+  delay(100);
+/*  loadini();
+  WiFi.begin(sqlpar[0], sqlpar[1]);
+  if(checkwifi()) {
+     if(_ESPMAINLOGLEVEL_>3) {WiFi.printDiag(Serial);}
+     if(checksql()) {
+        Serial.println("999");
+     }
+     else {
+        Serial.println("998");
+     }
   }
   else {
-  LOGERROR1("$$$ Can't connect to server:",server_addr);
-  LOGERROR1("$$$ user:",myUSER);
-  }
+    Serial.println("997");
+  }*/
+  for (int i=0;i<=MaxSqlStr;i++) storestatsql(i,0,0,0);
 }
 
 
 
-void readall() {
-
-    uint32_t realSize = ESP.getFlashChipRealSize();
-    uint32_t ideSize = ESP.getFlashChipSize();
-    FlashMode_t ideMode = ESP.getFlashChipMode();
-
-    Serial.print("*** Wake up after ");
-    Serial.println(ESP.getResetReason());
-    Serial.printf("*** Flash real id:   %08X\n", ESP.getFlashChipId());
-    Serial.printf("*** Flash real size: %u\n\n", realSize);
-    Serial.printf("*** Flash ide  size: %u\n", ideSize);
-    Serial.printf("*** Flash ide speed: %u\n", ESP.getFlashChipSpeed());
-    Serial.printf("*** Flash ide mode:  %s\n", (ideMode == FM_QIO ? "QIO" : ideMode == FM_QOUT ? "QOUT" : ideMode == FM_DIO ? "DIO" : ideMode == FM_DOUT ? "DOUT" : "UNKNOWN"));
-
-    if(ideSize != realSize) {
-        Serial.println("$$$ Flash Chip configuration wrong!\n");
-    } else {
-        Serial.println("*** Flash Chip configuration ok.\n");
+void ConnectAuto () {
+static int prauto,prwstt,conauto=0;
+static unsigned long contmr=0;
+    if (prauto!=conauto) {
+      prauto=conauto;
+      LOGDEBUG1("ConnAuto",prauto);
     }
+    if (prwstt!=WiFi.status()) {
+      prwstt=WiFi.status();
+      LOGDEBUG1("WiFi.status",prwstt);
+    }
+    switch(conauto) {
+      case 0:
+          if (WiFi.status()==WL_CONNECTED) {
+              if(conn.connected()) {
+                  conn.close();
+                  client.stop();
+              }
+              WiFi.disconnect();
+          }
+          conauto=1;
+          break;
+      case 1:
+          if (WiFi.status()==WL_CONNECTED) {
+              conauto=0;
+          }
+          else {
+              conauto=2;
+          }
+          break;
+      case 2: 
+          if (loadini()) {
+             WiFi.begin(sqlpar[0], sqlpar[1]);
+             contmr=millis()+20000;
+             conauto=5;             
+          }
+          else {
+             SaveStat(995,WiFi.status());
+             conauto=3;
+          }
+          break;
+      case 3:
+          if (loadini()) {
+             conauto=0;
+          }
+          break;
+      case 5:
+          switch(WiFi.status()) {
+            
+            case WL_CONNECTED:
+              SaveStat(997,WiFi.status());
+              server_addr.fromString(sqlpar[4]);
+              if (conn.connect(server_addr, 3306, sqlpar[2], sqlpar[3])) {
+                  conauto=7;
+                  SaveStat(999,WiFi.status());
+                  LOGDEBUG1("con.connect",WiFi.status());
+              }
+              else {
+                  conauto=0;
+                  LOGDEBUG1("con.disconnect",WiFi.status());
+              }
+              break;
+            case WL_IDLE_STATUS:     SaveStat(981,WiFi.status());  break;  
+            case WL_NO_SSID_AVAIL:   SaveStat(982,WiFi.status());  break;  
+            case WL_SCAN_COMPLETED:  SaveStat(983,WiFi.status());  break;  
+            case WL_CONNECT_FAILED:  SaveStat(984,WiFi.status());  break;  
+            case WL_CONNECTION_LOST: SaveStat(985,WiFi.status());  break;  
+            case WL_DISCONNECTED:
+              if (millis()>contmr) { 
+                conauto=0;
+                SaveStat(986,WiFi.status());
+              }
+              break;  
+            default:  SaveStat(980,WiFi.status());  break;
+          }
+          /*if (SPIFFS.exists(symFILEFLAG)) {
+              SPIFFS.remove(symFILEFLAG);*/
+          if (ifreconnect()) {
+              conauto=0;
+              SaveStat(994,WiFi.status());
+          }
+          break;
+      case 7:
+          if (WiFi.status()!=WL_CONNECTED) {
+             conauto=0;
+             SaveStat(991,WiFi.status());
+          }
+          else {
+            if(!conn.connected()) { 
+               conauto=0;
+              SaveStat(992,WiFi.status());
+            }
+            else select2file();
+          }
+          /*if (SPIFFS.exists(symFILEFLAG)) {
+             SPIFFS.remove(symFILEFLAG);*/
+          if (ifreconnect()) {
+             conauto=0;
+             SaveStat(994,WiFi.status());
+          }
+          break; 
+    }
+}
 
+void loop() {
+  // put your main code here, to run repeatedly:
+/*  if (millis()-mt>10000) {
+      mt=millis();
+  }
+  if (reconnect) {
+      WiFi.begin(sqlpar[0], sqlpar[1]);
+  if(WiFi.status() != WL_CONNECTED) {
+    checkwifi();
+  }*/
+  ConnectAuto();
+  SerialAutoMakerLoop();
 }
 

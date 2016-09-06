@@ -31,10 +31,10 @@
   Version 1.1.0a Created by Dr. Charles A. Bell, January 2016.
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
-#ifndef MYSQL_QUERY_H
-#define MYSQL_QUERY_H
+#ifndef EMYSQL_QUERY_H
+#define EMYSQL_QUERY_H
 
-#include "MySQL_Connection.h"
+#include <EMySQL_Connection.h>
 
 #define MAX_FIELDS    0x20   // Maximum number of fields. Reduce to save memory. Default=32
 

@@ -27,7 +27,11 @@
   Version 1.1.0a Created by Dr. Charles A. Bell, January 2016.
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
-#include "MySQL_Cursor.h"
+
+//#define _ESPCURLOGLEVEL_ 4
+//#define LOGCURDEBUG(x)      if(_ESPCURLOGLEVEL_>3) { Serial.print("$#CUR "); Serial.println(x); }
+
+#include <EMySQL_Cursor.h>
 
 const char BAD_MOJO[] PROGMEM = "Bad mojo. EOF found reading column header.";
 const char ROWS[] PROGMEM = " rows in result.";
@@ -230,13 +234,23 @@ boolean MySQL_Cursor::execute_query(int query_len)
   conn->buffer[3] = byte(0x00);
   conn->buffer[4] = byte(0x03);  // command packet
 
+  //LOGCURDEBUG("MySQL_Cursor::execute_query 1");
   // Send the query
-  for (int c = 0; c < query_len+5; c++)
-    conn->client->write(conn->buffer[c]);
+  LOGSDEBUG0("1ÆÎ");
+  for (int c = 0; c < query_len+5; c++) {
+      //unsigned int xx=millis()+100;
+      conn->client->write(conn->buffer[c]);
+      //if (xx<millis()) {
+      SerialAutoMakerLoop();   LOGSDEBUG0("*");
+      //}
+  }
+  LOGSDEBUG0("ÏÀ");
 
   // Read a response packet and check it for Ok or Error.
+  //LOGCURDEBUG("MySQL_Cursor::execute_query 2");
   conn->read_packet();
   int res = conn->check_ok_packet();
+  //LOGCURDEBUG("MySQL_Cursor::execute_query 3");
   if (res == MYSQL_ERROR_PACKET) {
     conn->parse_error_packet();
     return false;

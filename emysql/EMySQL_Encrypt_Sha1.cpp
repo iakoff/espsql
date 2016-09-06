@@ -11,7 +11,7 @@
  * Note: #defines renamed to prevent collisions
 */
 #include <string.h>
-#include "MySQL_Encrypt_Sha1.h"
+#include "EMySQL_Encrypt_Sha1.h"
 
 #define MYSQL_SHA1_K0 0x5a827999
 #define MYSQL_SHA1_K20 0x6ed9eba1

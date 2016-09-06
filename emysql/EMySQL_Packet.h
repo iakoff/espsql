@@ -30,12 +30,18 @@
   Version 1.1.0a Created by Dr. Charles A. Bell, January 2016.
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
-#ifndef MYSQL_PACKET_H
-#define MYSQL_PACKET_H
+#ifndef EMYSQL_PACKET_H
+#define EMYSQL_PACKET_H
+
+
+#define LOGSDEBUG0(x)       //Serial.print(x); 
+
 
 #include <Ethernet.h>
+#include <eserialauto.h>
 
-#define MYSQL_MAX_TIMEOUT   10
+
+#define MYSQL_MAX_TIMEOUT   30
 #define MYSQL_MIN_BYTES     8
 #define MYSQL_OK_PACKET     0x00
 #define MYSQL_EOF_PACKET    0xfe

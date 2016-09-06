@@ -31,10 +31,10 @@
   Version 1.1.0a Created by Dr. Charles A. Bell, January 2016.
   Version 1.1.1a Created by Dr. Charles A. Bell, January 2016.
 */
-#ifndef MYSQL_CONNECTION_H
-#define MYSQL_CONNECTION_H
+#ifndef EMYSQL_CONNECTION_H
+#define EMYSQL_CONNECTION_H
 
-#include "MySQL_Packet.h"
+#include <EMySQL_Packet.h>
 
 class MySQL_Connection : public MySQL_Packet {
   public:
